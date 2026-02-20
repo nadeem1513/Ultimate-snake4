@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Ultimate Snake Game</title>
+<style>
+body{
+  margin:0;
+  background:#1b1b1b;
+  text-align:center;
+  font-family:Arial;
+  color:white;
+}
+
+/* Top Buttons */
+#restartBtn{
+  position:fixed;
+  top:10px;
+  right:10px;
+  padding:8px 14px;
+  background:red;
+  color:white;
+  border:none;
+  border-radius:6px;
+}
+
+#speedBtn{
+  position:fixed;
+  top:10px;
+  left:10px;
+  padding:8px 14px;
+  background:orange;
+  border:none;
+  border-radius:6px;
+}
+
+#pauseBtn{
+  position:fixed;
+  right:10px;
+  top:60px;
+  padding:8px 14px;
+  background:cyan;
+  border:none;
+  border-radius:6px;
+}
+
+canvas{
+  background:#222;
+  margin-top:80px;
+  border-radius:10px;
+  box-shadow:0 0 25px lime;
+}
+
+.controls{
+  margin-top:20px;
+  display:flex;
+  justify-content:center;
+}
+
+.dpad{
+  display:grid;
+  grid-template-columns:70px 70px 70px;
+  grid-template-rows:70px 70px 70px;
+  gap:10px;
+}
+
+.dpad button{
+  font-size:24px;
+  border:none;
+  border-radius:12px;
+  background:lime;
+}
+
+.empty{background:transparent;}
+</style>
+</head>
+<body>
+
+<button id="speedBtn" onclick="changeSpeed()">Speed: Normal</button>
+<button id="restartBtn" onclick="restartGame()">Restart</button>
+<button id="pauseBtn" onclick="togglePause()">Pause</button>
+
+<h2>🐍 Ultimate Snake</h2>
+Score: <span id="score">0</span> |
+Level: <span id="level">1</span>
+
+<canvas id="game" width="400" height="400"></canvas>
+
+<div class="controls">
+  <div class="dpad">
+
+    <div class="empty"></div>
+    <button onclick="setDir('UP')">⬆</button>
+    <div class="empty"></div>
+
+    <button onclick="setDir('LEFT')">⬅</button>
+    <div class="empty"></div>
+    <button onclick="setDir('RIGHT')">➡</button>
+
+    <div class="empty"></div>
+    <button onclick="setDir('DOWN')">⬇</button>
+    <div class="empty"></div>
+
+  </div>
+</div>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+
+let size=20;
+let snake, direction, food, score, game;
+let level=1;
+let paused=false;
+
+let speedModes=[150,100,60];
+let speedIndex=1;
+
+function initGame(){
+  snake=[{x:200,y:200}];
+  direction="RIGHT";
+  food=randomFood();
+  score=0;
+  level=1;
+  paused=false;
+  document.getElementById("score").innerHTML=score;
+  document.getElementById("level").innerHTML=level;
+  document.getElementById("pauseBtn").innerText="Pause";
+  startGame();
+}
+
+function startGame(){
+  clearInterval(game);
+  game=setInterval(draw,getSpeed());
+}
+
+function getSpeed(){
+  let baseSpeed=speedModes[speedIndex];
+
+  if(level==2) return baseSpeed-20;
+  if(level==3) return baseSpeed-40;
+  return baseSpeed;
+}
+
+function changeSpeed(){
+  speedIndex++;
+  if(speedIndex>=speedModes.length) speedIndex=0;
+
+  let labels=["Slow","Normal","Fast"];
+  document.getElementById("speedBtn").innerText="Speed: "+labels[speedIndex];
+  startGame();
+}
+
+function togglePause(){
+  if(paused){
+    startGame();
+    paused=false;
+    document.getElementById("pauseBtn").innerText="Pause";
+  }else{
+    clearInterval(game);
+    paused=true;
+    document.getElementById("pauseBtn").innerText="Play";
+  }
+}
+
+function setDir(dir){
+  if(dir=="LEFT" && direction!="RIGHT") direction="LEFT";
+  if(dir=="UP" && direction!="DOWN") direction="UP";
+  if(dir=="RIGHT" && direction!="LEFT") direction="RIGHT";
+  if(dir=="DOWN" && direction!="UP") direction="DOWN";
+}
+
+document.addEventListener("keydown",function(e){
+  if(e.key=="ArrowLeft") setDir("LEFT");
+  if(e.key=="ArrowUp") setDir("UP");
+  if(e.key=="ArrowRight") setDir("RIGHT");
+  if(e.key=="ArrowDown") setDir("DOWN");
+});
+
+function randomFood(){
+  return{
+    x:Math.floor(Math.random()*20)*size,
+    y:Math.floor(Math.random()*20)*size
+  }
+}
+
+function updateLevel(){
+  if(score>=20) level=3;
+  else if(score>=10) level=2;
+  else level=1;
+
+  document.getElementById("level").innerHTML=level;
+}
+
+function draw(){
+
+  ctx.fillStyle="#222";
+  ctx.fillRect(0,0,400,400);
+
+  // Food
+  ctx.beginPath();
+  ctx.arc(food.x+size/2,food.y+size/2,size/2-2,0,2*Math.PI);
+  ctx.fillStyle="red";
+  ctx.fill();
+
+  let headX=snake[0].x;
+  let headY=snake[0].y;
+
+  if(direction=="LEFT") headX-=size;
+  if(direction=="UP") headY-=size;
+  if(direction=="RIGHT") headX+=size;
+  if(direction=="DOWN") headY+=size;
+
+  // Wall cross
+  if(headX<0) headX=400-size;
+  if(headX>=400) headX=0;
+  if(headY<0) headY=400-size;
+  if(headY>=400) headY=0;
+
+  if(headX==food.x && headY==food.y){
+    score++;
+    document.getElementById("score").innerHTML=score;
+    updateLevel();
+    startGame();
+    food=randomFood();
+  }else{
+    snake.pop();
+  }
+
+  let newHead={x:headX,y:headY};
+
+  if(collision(newHead,snake)){
+    clearInterval(game);
+    alert("Game Over! Score: "+score);
+  }
+
+  snake.unshift(newHead);
+
+  // Snake draw
+  for(let i=snake.length-1;i>=0;i--){
+    let gradient=ctx.createRadialGradient(
+      snake[i].x+size/2,
+      snake[i].y+size/2,
+      2,
+      snake[i].x+size/2,
+      snake[i].y+size/2,
+      size/2
+    );
+    gradient.addColorStop(0,"#66ff66");
+    gradient.addColorStop(1,"#006600");
+
+    ctx.beginPath();
+    ctx.arc(snake[i].x+size/2,snake[i].y+size/2,size/2-1,0,2*Math.PI);
+    ctx.fillStyle=gradient;
+    ctx.fill();
+  }
+
+  // Eyes
+  let hx=snake[0].x;
+  let hy=snake[0].y;
+
+  ctx.fillStyle="white";
+  ctx.beginPath();
+  ctx.arc(hx+6,hy+6,3,0,2*Math.PI);
+  ctx.arc(hx+14,hy+6,3,0,2*Math.PI);
+  ctx.fill();
+
+  ctx.fillStyle="black";
+  ctx.beginPath();
+  ctx.arc(hx+6,hy+6,1.5,0,2*Math.PI);
+  ctx.arc(hx+14,hy+6,1.5,0,2*Math.PI);
+  ctx.fill();
+}
+
+function collision(head,array){
+  for(let i=0;i<array.length;i++){
+    if(head.x==array[i].x && head.y==array[i].y){
+      return true;
+    }
+  }
+  return false;
+}
+
+function restartGame(){
+  initGame();
+}
+
+initGame();
+</script>
+
+</body>
+</html>
